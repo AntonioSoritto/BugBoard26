@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+
+  db:
+    image: postgres:16
+    container_name: bugboard26-db
+    restart: always
+    environment:
+      POSTGRES_DB: bugboard26
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d bugboard26"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    container_name: bugboard26-backend
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/bugboard26
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: secret
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      JWT_SECRET: bugboard26supersecretkey1234567890
+      JWT_EXPIRATION: 86400000
+      SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: 100MB
+      SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: 100MB
+    volumes:
+      - ./uploads:/app/uploads
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: bugboard26-sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+
+volumes:
+  db_data:
+  sonarqube_data:
+  sonarqube_logs:
